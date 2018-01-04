@@ -1,0 +1,182 @@
+1. 总结git的两大特点：
+		版本控制：可以解决多人同时开发的代码问题，也可以解决找回历史代码的问题
+		分布式：Git是分布式版本控制系统，同一个Git仓库，可以分布到不同的机器上。
+			首先找一台电脑充当服务器的角色，每天24小时开机，
+			其他每个人都从这个“服务器”仓库克隆一份到自己的电脑上，
+			并且各自把各自的提交推送到服务器仓库里，也从服务器仓库中拉取别人的提交。
+			可以自己搭建这台服务器，也可以使用GitHub网站
+
+2. 安装配置
+	1. 安装
+		sudo apt-get install git
+	2. 修改配置
+		vi .gitconfig
+		填写注册时的邮箱和用户名
+
+4. 如果某台机器需要与github上的仓库交互，那么就要把这台机器的ssh公钥添加到这个github账户上
+	1. 首先客户机生成ssh密钥：
+		rm -r .ssh #删除旧的密钥
+		ssh-keygen -t rsa -C "Github账号，可以是用户名，也可以是邮箱地址"  #根据提示生成新的密钥
+	2. 经理账号把生成的密钥在GitHub网站上加入到仓库中
+
+5. 客户端克隆GitHub上的仓库
+	1. 把创建的密钥添加到ssh账户
+		eval "$(ssh-agent -s)"
+		ssh-add
+	2. 克隆GitHub的仓库
+		git clone git地址  # Git地址由经理告诉员工
+
+6. Git命令
+	01. git branch  								# 查看所有分支
+	02. gti branch 分支名  						# 创建分支
+	03. git checkout -b 分支名  					# 创建并切换到分支，注意会根据上一个分支的内容创建这个新的分支
+	04. git checkout -b dev origin/dev 			# 根据服务器上的dev分支创建本地的dev分支
+	05. git branch -d 分支名  					# 删除分支
+	05. git push origin 分支名  					# 将分支推送到服务器
+	06. git pull 									# 获取服务器上的代码
+	08. git --set-upstream-to=origin/dev dev  		# 让服务器跟踪本地的dev
+	09. git add ./  								# 把工作区的改变保存到暂存区
+	10. git commit -m '备注信息'  				# 把暂存区的改变保存到仓库，并设置备注信息
+	11. git merge 分支名  							# 这个一般在dev分支执行，把分支合并到dev分支
+	12. git status  								# 查看当前的状态
+	13. git reflog  								# 查看简要日志
+	14. git flog 									# 查看详细日志
+	15. git diff HEAD --文件名 					# 让工作区中的版本可版本库中的版本做对比，查看有哪些改动，HEAD表示当前版本，上一个版本就是HEAD^，再上一个版本就是HEAD^^，当然往上100个版本写100个^肯定就麻烦了，提供了一种简写方式为HEAD~100 
+	16. git diff 版本号1 版本号2 文件名			# 让两个版本中的某个文件做对比
+
+07. 经理要做的事情
+	01. 在GitHub上创建仓库
+	02. 克隆GitHub的仓库到本地
+		github clone git地址
+	03. 创建项目分支
+		01. git branch dev  # 创建dev分支
+			分支dev开发阶段性的代码合并，每个阶段的工作完成后需要进行一次，控制项目的进度
+		02. git branch 分支名  # 创建自己的分支
+		03. git checkout 自己的分支名  # 切换到自己的分支
+	04. 搭建项目框架
+		01. 在克隆的目录下创建Django项目
+		02. git add 项目目录  			# 讲项目添加到暂存区
+		03. git commit -m '搭建框架'  # 将暂存区的项目提交到仓库
+		04. git checkout dev  			# 切换到dev分支
+		05. git merge 自己的分支  		# 讲创建好项目的分支合并到dev分支
+		06. git push origin dev  		# 讲dev分支推送到服务器上
+
+08. 员工要做的事情
+	01. 生成ssh密钥交给项目经理，让项目经理把该密钥应用到GitHub上自己的账户中，这样就可以接下来的操作
+	02. git clone 项目地址  					# 把项目克隆到本地
+	03. git diff 版本号1 版本号2 文件名			# 让两个版本中的某个文件做对比
+	04. git push origin 自己的分支  			# 将自己的分支推送到服务器
+	05. git branch --set-upstream-to=origin/自己的分支 自己的分支  # 将自己的分支跟踪服务器
+	06. git checkout -b dev origin/dev  		# 将服务器的dev分支同步到本地
+	07. git checkout 自己的分支
+	07. 开发阶段操作方法
+		01. git add ./ 									# 将代码修改添加到暂存区
+		02. git commit -m '备注信息'					# 将暂存区的修改提交到仓库，完成一个版本的提交
+		03. git reflog     							# 查看简要日志
+		04. git flog   								# 查看详细日志，q键退出查看
+		05. git diff HEAD --文件名 					# 让工作区中的版本可版本库中的版本做对比，查看有哪些改动，HEAD表示当前版本，上一个版本就是HEAD^，再上一个版本就是HEAD^^，当然往上100个版本写100个^肯定就麻烦了，提供了一种简写方式为HEAD~100
+		06. git diff 版本号1 版本号2 文件名			# 让两个版本中的某个文件做对比
+		07. git status  								# 查看当前的状态信息
+		08. git reset 版本号 							# 恢复仓库中指定的版本号的内容到暂存区，版本号可以是版本号，也可以是HEAD^
+		09. git checkout --文件名 						# 将指定文件从暂存区恢复到工作区
+		10. 文件删除
+			01. 删除物理文件
+			02. git rm 文件名  # 将操作保存到暂存区
+			03. git commit -m '备注信息' # 从暂存区保存到版本库，生成新的版本
+
+		11. 删除恢复的文件
+			01. git reset 版本号  # 从版本库恢复到暂存区
+			02. git checkout --文件名  # 将文件从暂存区恢复到工作区
+
+		12. debug分支介绍
+			01. 介绍
+				当遇到某种紧急情况，需要停下当前的工作而马上处理另一个问题时，
+				而同时当前的工作又不想保存为一个新的版本，就可以使用如下步骤
+			02. git stash  					# 保存当前的状态
+			03. git checkout master  		# 切换到master分支
+			04. git pull  					# 获取最新代码
+			05. git checkout -b bug001  	# 根据master分支创建出来调试分支
+			06. 对代码做出修改(调错)
+			07. git add ./
+			08. git commit -m '备注信息'
+			09. git checkout master  		# 切换到master分支
+			10. git merge --no-ff -m '备注信息' bug001  # 将bug001分支上的修改合并到master分支因为临时分支用完后会被删除，无法通过分支查询历史记录，所以使用临时分支时需要使用no-ff的方式，同时写上-m备注信息
+			11. git checkout 修改之前工作的分支  # 切换到修改之前工作的分支
+			12. git branch -D bug001  	# 删除修改bug的临时分支
+			13. git stash list  			# 查看现场列表
+			14. git stash pop  			# 恢复之前的工作现场
+
+09. 项目合并发布
+	01. 介绍
+		项目开发完一个版本后，需要进行项目的合并与发布
+		项目合并与发布，需要项目经理和组员一起来完成，每个人将开发的分支逐个合并到dev分支，如果有冲突则解决冲突，在dev上的代码经过测试没有问题后，则由经理合并到master分支，完成发布
+		实现发布主要遵守如下步骤：
+			每个人逐个合并分支到dev
+			经理合并dev到master并发布
+			每个人获取最新的dev分支、master分支
+
+	02. 逐个合并
+		01. 完成自己分支代码的开发并完成添加、提交及推送
+		02. git checkout dev
+			切换到dev分支
+		03. git pull
+			获取最新代码
+		04. git merge 分支
+			合并自己的分支
+		05. git add ./
+			在项目的根目录下操作，添加到缓存区
+		06. git commit -m '备注信息'
+			提交到仓库
+		07. git push origin dev
+			推送到服务器
+	
+	03. 经理合并 
+		01. git checkout dev
+			切换到dev分支
+		02. git pull
+			获取最新代码
+		03. git checkout master
+			切换都master分支
+		04. git merge dev
+			合并dev分支
+		05. git add ./
+			在项目根目录下执行该操作
+		06. git commit -m '备注信息'
+		07. git tag 标签名
+			标签就是为了给一堆数字的版本号，起一个容易记住的名字，一般用于master分支
+		08. git push
+			推送到服务器
+	
+	04. 员工逐个获取最新的代码
+		01. git checkout master
+		02. git pull
+			获取最新的发布代码
+		03. git checkout dev
+		04. git merge master
+			合并master分支的最新内容到dev分支
+		05. git checkout 自己的分支
+			切换到自己的分支
+		06. git merge dev
+			合并dev分支的内容到自己的分支
+			
+
+
+
+
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+
+		

@@ -1,0 +1,332 @@
+ celery worker --app=proj -l info
+ 	-b 指定broker
+ 	-c 指定处理任务的进程数(默认是CPU核心的数量)，超过CPU核心数的两倍不仅不会有性能提升，还会下降
+ celery -A proj worker --loglevel info
+
+ celery multi start w1 -A proj -l info
+ 	--pidfile=/var/run/celery/%n.pid 默认情况下pid文件和log会在当前目录创建，为了防止多个worker互相影响，可以单独指定文件
+ 	--logfile=/var/log/celery/%n.pid
+ celery multi restart w1 -A proj -l info
+ celery multi stop w1 -A proj -l info
+ celery multi stopwait w1 -A proj -l info
+
+
+ group:并行执行
+	>>> from celery import group
+	>>> from proj.tasks import add
+
+	>>> group(add.s(i, i) for i in xrange(10))().get()
+	[0, 2, 4, 6, 8, 10, 12, 14, 16, 18]
+
+	部分组：
+		g = group(add.s(i) for i in xrange(10))
+		g(10).get()
+		[10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+
+链(chain):一个任务执行后另一个再执行
+	from celery import chain
+	from proj.tasks import add, mul
+	# (4 + 4) * 8
+	chain(add.s(4, 4) | mul.s(8))().get()
+	64
+partial chain:
+	# (? + 4) * 8
+	>>> g = chain(add.s(4) | mul.s(8))
+	>>> g(4).get()
+	64
+Chains的另外一种写法：
+	>>> (add.s(4, 4) | mul.s(8))().get()
+	64
+
+chord:一个有回调的组合，即一个group返回一个列表，然后传参数给另外一个任务
+	from celery import chord
+	from proj.tasks import add, xsum
+	chord((add.s(i, i) for i in xrange(10)), xsum.s())().get() # 90
+
+	A group chained to another task will be automatically converted to a chord:
+		(group(add.s(i, i) for i in xrange(10)) | xsum.s())().get()
+		90
+
+任务路由
+	指定任务队列
+		方法1：创建app时
+			app.conf.update(
+			    CELERY_ROUTES = {
+			        'proj.tasks.add': {'queue': 'hipri'},
+			    },
+			)
+		方法2：在运行时
+			from proj.tasks import add
+			add.apply_async((2, 2), queue='hipri')
+
+	在运行worker时，让worker消费指定的队列
+		celery -A proj worker -Q hipri
+
+	给worker指定多个队列，以，分割
+		celery -A proj worker -Q hipri,celery
+			celery是默认队列
+
+远程控制(检查和控制worker)
+	查看当前运行的任务
+		celery -A proj inspect active
+			所有的worker都会收到该消息
+
+	检查指定worker当前运行的任务
+		celery -A proj inspect active --destination=celery@example.com
+			多个主机名用，分割
+
+	强制开启worker的事件信息
+		celery -A proj control enable_events
+
+	开启worker事件信息后，查看worker当前正在做的事情
+		celery -A proj events --dump
+	关闭worker的事件信息
+		celery -A proj control disable_events
+
+	查看worker的状态，返回集群中在线worker的列表
+		celery -A proj status
+
+
+设置时区
+	app.conf.CELERY_TIMEZONE = 'Europe/London'
+
+调用
+	from proj.tasks import add
+	res = add.delay(2, 2)
+	res = add.apply_async((2, 2),queue='higpri', countdown=10)
+		apply_async 与delay相比，可以添加选项
+		queue指定处理队列
+		countdown 指定延时时间，这里指最早10s后消息被发送出去
+	res.get(timeout=1)
+		获取结果
+		如果任务没有执行，则会抛出异常
+	res.get()
+		倘若任务抛出了一个异常， get() 会重新抛出异常， 但你可以指定 propagate 参数来覆盖这一行为:
+		res.get(propagate=False)
+	res.id
+		每一个任务都有一个唯一的id
+	res.failed()
+		任务是否执行失败
+	res.successful()
+		任务是否已经成功执行完
+	res.state
+		任务的状态
+		前提要配置celery_trace_started选项
+
+	res.read()
+		ready() 方法查看任务是否完成处理:
+
+	res.backend
+		查看后端配置情况
+
+
+celery.task()装饰器的参数
+	bind=True
+	bind参数会通知Celery在调用任务是，把任务对象作为第一个参数传入，这样就可以通过self参数访问到任务对象，
+	并调用retry方法，它会使用相同的参数把任务再跑一次
+	如：
+	@celery.task(bind=True)
+	def task(self,param):
+		try:
+			somecode
+		except Exception,e:
+			self.retry(exc=e)
+
+	max_retries:
+		任务可以重试的最大次数，达到该次数后，任务将被标记为失败
+
+	default_retry_delay:
+		以秒为单位，表示重跑任务之前应该等待的时间。
+		如果你认为造成失败的原因是暂时性的，例如网络问题，则可以延时后再重试
+
+	rate_limit:
+		限定在一段给定的时间内这个任务最多能进行多少次不同的调用
+		如果值是一个整数，则表示每秒钟最多能进行多少次不同的调用
+		如果是一个x/m的字符串，表示每分钟跑x次
+		x/h表示每小时跑多少次
+
+	time_limit:
+		如果带了这个参数，且任务运行时间超过此参数规定的描述，就会把任务杀掉
+
+	ignore_result:
+		忽略该任务运行的结果，即该任务结果不会传到结果后台。
+
+运行celery任务
+	task.delay(参数)
+	task.apply_async((参数元组),选项)
+		delay方法时apply_async的简写
+		apply_async方法可以在执行时定义一些额外的功能
+			countdown=10
+				指定延时时间，这里指最早10s后消息被发送出去
+
+			eta
+				eta是一个Python的datetime对象，指定了任务开始的精确时间，但是也不是很可靠，因为可能任务太多，任务来不及处理
+				如：
+					eta = datetime.datetime.now()+datetime.timedelta(hours=1)
+					task.apply_async((参数),eta=eta) # 一小时后执行任务。
+
+签名(signature)
+	在调用一个任务的签名(或者叫子任务)时，就生成一个函数，可以把它传给其他函数，让其他函数去执行它，
+	如果直接执行签名，则会在当前进程中执行。
+
+	如：
+		@celery.task
+		def multiply(x, y):
+			return x * y
+
+	from celery import signature
+	from tasks import multiply
+	>>>signature('tasks.multiply', args=(4,4), countdown=10) # 调用签名时，使用跟apply_async同样的参数
+	tasks.task.multiply(4,4)
+
+	>>>multiply.subtask((4,4),countdown=10) # 跟上面的功能一样
+	tasks.multiply(4,4)
+
+	>>>multiply.s(4,4)
+	tasks.multiply(4,4) # 上面的功能的缩略版本，像delay方法一样，没有apply_async的关键字参数
+
+	>>>multiply.s(4.4)()
+	14
+
+	>>>multiply.s(4,4).delay()
+
+偏函数
+	偏函数来源于一个要接收很多参数的函数，这个函数被施加某种操作后，生成了一个新的函数，在调用这个新函数时，前n个参数永远是一样的
+	如：
+		partial = multiply.s(4) # 生成一个偏函数，这个函数与原函数相比，第一个参数已经固定
+		partial.delay(4) # 调用偏函数，传入其他参数
+
+回调函数
+	当一个任务执行完时，会基于这个任务的执行结果去执行另一个任务，为实现这个目的，apply_async函数提供了一种link方法：
+		multiply.apply_async((4,4),link=log.s()) # 这里的log也是一个任务函数，接收一个参数。multiply执行完后，返回16，然后将16作为log函数的参数进行调用
+
+	如果回调函数不接收输入，或者不需要上一个任务的输出结果，则其任务签名就必须使用si方法，而不能使用s方法：
+		multiply.apply_async((4,4),link=log.si('message')) # 这里我们不需要multiply的执行结果
+
+	偏函数和回调函数结合使用：
+		multiply.apply_async((4,4), link=multiply.s(4))
+		注意：
+			这次调用如果结果被保存下来，并且使用get方法获取了结果，那么结果会是16而不是64.
+			这是因为get方法不会反悔回调方法的结果
+			但是两个任务都被执行了，worker中会显示两个结果16和64.
+
+任务组(group)
+	任务组(group)函数接收一组任务签名的 列表，并生成一个函数，调用该函数可并行执行所有的任务签名，并返回所有结果的列表
+	例如：
+		from celery import group
+		sig = group(multiply.s(i,i+5) for i in range(10))
+		res = sig.delay()
+		res.get()
+		[0, 6, 14, 24, 36, 50, 66, 84, 104, 126]
+
+任务链(chain)
+	chain函数接收一组任务签名，把每个签名的执行结果传给任务链中的下一个，最后只返回一个结果
+	如：
+		from celery import chain
+		sig = chain(multiply.s(10,10), multiply.s(4), multiply.s(20))
+		sig = (multiply.s(10,10) | multiply.s(4) | multiply.s(20)) # 跟上面的是一个意思
+		res = sig.delay()
+		res.get()
+		8000
+
+	任务链中组合偏函数
+	func = (multiply.s(10) | multiply.s(2))
+	result = func.delay(16)
+	result.get()
+	320
+
+	任务链嵌套
+	func = (multiply.s(10) | multiply.s(2) | (multiply.s(4) | multiply.s(5)))
+	result = func.delay(16)
+	result.get()
+	6400
+
+复合任务(chord)
+	chord函数生成一个任务签名时，会先执行一个任务组，然后把任务组的结果传给回调函数
+	跟link参数一样，回调函数不会把结果传给get方法
+	如：
+		from celery import chord
+		sig = chord(group(multiply.s(i, i+5) for i in range(10)),log.s())
+		res = sig.delay()
+		res.get()
+		[0, 6, 14, 24, 36, 50, 66, 84, 104, 126]\
+
+	如果使用任务链的语法，把一个任务组合一个回调函数组合在一起，那么会自动生成一个复合任务的签名
+	如：
+		sig = (group(multiply.s(i, i+5) for i in range(10)) | log.s())
+		res = sig.delay()
+		res.get()
+		[0, 6, 14, 24, 36, 50, 66, 84, 104, 126]
+
+定期执行任务
+	1. 配置
+		CELERYBEAT_SCHEDULE  = {
+			'log-every-30-seconds':{ # log-every-30-seconds表示其中一条配置的名字，这个名字可以随便指定
+				'task':'tasks.log', # 定期执行的任务
+				'schedule':datetime.timedelta(seconds=30), # 定义多久后执行任务，这里是每30s执行一次
+				'args':('message',) # 传递给log的参数，是一个元组。
+			},
+		}
+
+	2. 运行定期任务
+		要运行定期任务，需要另外启动一个叫做beat的工作进程，
+		celery -A runner beat
+
+	3. 更加精确的控制运行时间
+		使用Celery的crontab对象，而不适用timedelta对象。
+		from celery.schedules import crontab
+		crontab(minute=0,hours=0) # 每分钟
+		crontab(minute=0,hour=[5, 10, 15, 20]) # 早上5点，然后10点，然后下午3点，以及8点
+		crontab(minute='*/30') # 每半个小时
+		crontab(day_of_week=1, hour='*/2, 1') # 每星期1的偶数整点及凌晨1点。
+
+		参数说明：
+		minute
+		hour
+		day_of_week
+		day_of_month
+		month_of_year
+		其中每个参数都可以接收多种格式的值。
+		只传递整数的话，用起来就像timedelta对象
+		也可以接收字符串和列表
+		传递列表时，会在列表中的每个值代表的时刻执行任务
+		传递*/x格式的字符串是，会对时间值和x进行取模运算，当运算结果为0时执行该任务。
+		另外除法格式还可以和整数格式用逗号隔开，组合在一起。
+
+监控celery
+	把代码部署到服务器后，就不能再从终端窗口运行Celery工作进程了，而是需要把它跑到后台。
+	正因为如此，Celery提供了很多命令行参数来监控Celery工作进程和任务。
+	即用来查看worker的工作情况。
+	命令形式如下：
+		celery -A runner <command>
+		command有如下一些主要的命令：
+		status:					会打印正在进行的worker，如果他们在工作
+		result: 				传入一个任务id，会显示这个任务的返回值及最终的状态。
+		purge: 				使用这个命令会删除中间人的所有消息。
+		inspect active 		列出所有当前正在执行的任务
+		inspect scheduled 	列出所有使用eta参数进行排期中的任务
+		inspect registered 	列出所有等待被执行的任务
+		inspect stats 		返回一个字典，包含了当前当前正在跑的worker和中间人的统计信息。
+
+
+在flower中通过网页进行监控
+	flower是针对celery的基于网页的实时管理工具。
+	在flower中可以监控所有正在执行的，队列中的和已完成的任务。
+	flower还提供统计图表，可以显示每个任务再不同参数的情况下，队列里的等待时间和实际执行时间的对比
+
+	安装flower
+		pip install flower
+
+	吧flower看做一个celery命令来运行：
+	 celery flower -A celery_runner --loglevel=info
+
+	打开浏览器，访问http://localhost:5555,查看页面
+
+	在命令行中执行任务
+		>>>sig = chord(group(multiply.s(i, i+5) for i in range(10000)), log.s())
+		>>>sig.delay()
+
+
+
+
+

@@ -1,0 +1,416 @@
+01. UDP(user datagram protocol)用户数据报协议
+	01. 特点
+		01. 无连接
+		02. 不可靠
+		03. 每个被传输的数据报必须限定在64KB之内
+
+	02. 优点：效率高
+		缺点：不可靠
+
+	03. 使用场景：多点通讯和实时的数据业务
+		语音广播
+		视频传输
+		QQ
+		TFTP
+		SNMP
+		RIP
+		DNS
+
+	04. udp服务器编写
+		server_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+		server_sock.bind(("", 8080))
+		while 1:
+		    recv_data, client_addr = server_sock.recvfrom(1024)
+		    print("收到了客户端{0}传来的数据{1}".format(client_addr, recv_data.decode()))
+		# recv_data = server_sock.recvfrom(1024)
+		# server_sock.close()
+
+	05. udp客户端编写
+		client_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+		client_sock.sendto(b"haha", ('127.0.0.1', 8081))
+		client_sock.close()
+
+	06. udp广播功能
+		要想让socket具有广播功能，
+		首先应该让socket开启广播功能，
+		然后要绑定广播地址，广播地址可以使用ifconfig获得，或者使用'<broadcast>'
+		示例：
+			client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+			# 设置socket对象，将socket的广播功能打开
+			# socket.SOL_SOCKET 表示设置的选项参数的等级  Set Option Level - SOCKET
+			# socket.SO_BROADCAST 表示设置的具体是哪个选项参数， Set Option - Broadcast 广播
+			client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+			# 对于客户端可以不用绑定地址信息，操作系统会随机分配一个端口用以通讯使用
+			while True:
+			    msg = input("请输入要发送的内容：")   # 字符串类型， 通过msg.encode() 编码 转换为bytes类型
+			    # receiver_address = ("192.168.70.255", 8000)  # 接收方 设置广播地址
+			    # 使用<broadcast>可以指明广播地址，但是不用固定死，可以达到通用
+			    receiver_address = ("<broadcast>", 8000)  # 接收方 设置广播地址
+			    client_socket.sendto(msg.encode(), receiver_address)
+			# # 如果不再使用套接字进行通讯，关闭套接字
+			# client_socket.close()
+
+02. socket介绍
+	01. 介绍
+		socket模块的socket类用来发送接收消息，中文名套接字
+	02. socket类的常用方法
+		01. socket.socket(AddressFamily, Type)
+			参数1：可以选择 AF_INET（用于 Internet 进程间通信） 或者 AF_UNIX（用于同一台机器进程间通信）,实际工作中常用AF_INET
+			参数2：可以是 SOCK_STREAM（流式套接字，主要用于 TCP 协议）或者 SOCK_DGRAM（数据报套接字，主要用于 UDP 协议）
+
+		02. s.bind(address)
+			给套接字绑定地址，一般服务器需要绑定地址，客户端可以不用绑定
+			address是一个元组，第一个元素是ip地址字符串类型，第二个元素是端口号整数类型
+
+		03. s.sendto()
+			一般用来给udp服务器发送数据
+			参数1： 	要发送的数据，字节类型
+			参数2： 	接收数据的地址，是一个元组，包括ip和端口号
+
+		04. s.send()
+			给tcp服务器发送数据，受TCP流量控制机制的影响，有的时候会阻塞
+			参数：要发送的数据，是字节类型
+
+		05. s.recv()
+			接收客户端发来的数据，默认是阻塞方式一直到客户端发来数据为止，一般用在TCP通信
+			参数：表示接收的最大字节数
+			返回值：接收到的数据，是字节类型，如果收到的数据是长度为0的数据，则表示客户端关闭了连接，此时也可以把服务端的socket关闭。
+
+		06. s.recvfrom()
+			接收客户端传来的数据，默认是阻塞行为，一般用在udp
+			参数：表示接收的最大字节数
+			返回值：
+				返回值1表示接收的数据，是字节类型
+				返回值2表示传来数据的客户端的信息，是一个元组，包括ip和端口
+
+		07. s.listen()
+			开启TCP服务器的监听，使其能够接受客户端的连接请求
+			参数 表示监听队列的大小，即最多能同时处理三次握手的客户端的数量，整数类型
+
+		08. s.accept()
+			接受TCP客户端的请求，与客户端完成三次握手，默认是阻塞方式，等待客户端发起连接
+			返回值1： 	一个新的socket对象，用来与客户端进行一对一的数据传输
+			返回值2： 	建立连接的客户端的地址，是一个元组，包括ip和端口号
+
+		09. s.connect()
+			连接TCP服务器，完成三次握手
+			参数 	服务器的地址，是一个元组，第一个元素是服务器的ip地址，第二个元素是服务器的端口号
+
+		09.s.close()
+			关闭socket，释放资源 
+
+		10. s.setblocking()
+			设置socket是否是阻塞方式
+			参数 	False表示以非阻塞方式运行，默认是True，阻塞方式
+			如果设置了非阻塞方式，则accept recv send都会变成非阻塞方式
+			accept在有客户端发起连接的时候，则接受连接，返回新的socket对象和客户端的地址，如果没有客户端发起连接则会抛出BlockingIOError
+			recv在有数据的时候传来的时候，接收数据，否则BlockingIOError异常
+
+		11. s.setsockopt()
+			对socket进行设置
+			参数1 设置的选项的级别
+			参数2 设置的具体选项
+			参数3 1表示开启参数2的选项，0表示关闭
+			常用的选项设置
+			s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1) #开启udp socket的广播功能
+			s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) 
+				#默认情况下socket在关闭后，一段时间内操作系统会禁止再使用之前绑定的端口，
+				对于服务器而言，应该随时都能开启并使用固定的端口，所以应该开启socket随时
+				都可以重用端口号的功能。
+
+		12. s.getpeername()
+			获取与socket s通信的socket对象的信息，是一个元组，包括ip和端口号
+
+03. nc命令的使用
+	01. 作用
+		nc可以作为server以TCP或UDP方式侦听指定端口
+		nc可以作为client发起TCP或UDP连接
+
+	02. 选项
+		-l
+			用于指定nc将处于侦听模式。指定该参数，则意味着nc被当作server，侦听并接受连接，而非向其它地址发起连接。
+		-u
+			指定nc使用UDP协议，默认为TCP
+
+	03 示例
+		nc -u 127.0.0.1 8080 #以udp的方式连接本机8080端口的进程
+		nc -ul 8080			#开启一个udp服务器，使用8080端口
+		nc -l 8080			#开启一个tcp服务器，使用8080端口
+		nc 127.0.0.1 8080		#以TCP的方式连接本机8080端口的进程
+
+04. TCP协议(传输控制协议)
+	01. 特点
+		面向连接的		TCP在传输数据之前要经过三次握手，数据传输完后要有四次挥手的过程
+		可靠的			1. 发送应答 2. 超时重传 3， 错误校验 4. 流量控制和阻塞管理 来实现可靠连接
+		基于字节流的
+			udp是用户数据报，发送接收的数据是一个整体
+			TCP会把数据先缓存到缓存区，然后再进行分包发送
+			在接收端会把收到的包缓存好后，再给程序
+			传输的数据包是以字节大小来编号
+
+	02. TCP服务器编写流程
+		1. 创造一个用以TCP通信的监听socket对象
+		2. 给socket绑定地址
+		3. 调用listen方法开启监听
+		4. 调用accept方法接受客户端的连接，并返回一个新的用来和这个客户端一对一传输数据的socket
+		5. 调用accept返回的新的socket的recv方法接收数据
+		6. 调用返回的新的socket的send方法向客户端发送数据
+		7. 用完之后关闭这个心的socket对象
+		8. 关闭监听的socket对象
+
+	03. TCP服务器代码示例
+		listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		listen_sock.bind(("", 8080))
+		listen_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # 设置端口号重用
+		listen_sock.listen(128)  #设置最大监听数量
+		new_sock, client_addr = listen_sock.accept()
+		while 1:
+		    recv_data = new_sock.recv(1024)
+		    if recv_data:
+		        print("收到了{0}发送来的数据{1}".format(client_addr, recv_data.decode()))
+		    else:
+		        # 客户端关闭了连接
+		        new_sock.close()
+		        break
+
+	04. TCP客户端编写流程
+		1. 创造一个用以TCP通信的监听socket对象
+		2. 调用connect方法连接服务器
+		3. 调用send方法给服务器发送数据
+		4. 调用recv方法接收服务器返回的数据
+		5. 使用完毕调用close方法关闭连接
+
+	05. TCP客户端代码示例
+		import socket
+		client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		client_sock.connect(('127.0.0.1', 8080))
+		client_sock.send(b'heh')
+		client_sock.close()
+
+05. 服务器模型
+	01. 介绍
+		服务器模型就是能同时处理多个请求，每个连接可以多次发送接收数据的服务器
+
+	02. 多进程版TCP服务器模型
+			from multiprocessing import Process
+			import socket
+
+			listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			listen_sock.bind(("", 8080))
+			listen_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+			listen_sock.listen(128)
+
+
+			def handle_client(new_sock, client_addr):
+			    while 1:
+			        recv_data = new_sock.recv(1024)
+			        if recv_data:
+			            print("客户端{0}发送过来了消息{1}".format(client_addr, recv_data.decode()))
+			            new_sock.send(recv_data)
+			        else:
+			            print("客户端{0}关闭了连接".format(client_addr))
+			            new_sock.close()
+			            break
+
+
+			while True:
+			    new_sock, client_addr = listen_sock.accept()
+			    p = Process(target=handle_client, args=(new_sock, client_addr))
+			    p.start()
+			    new_sock.close()  # 因为new_sock的资源已经复制到了另一个进程里面，所以这里关闭也不会发送fin结束消息，会等进程里面的调用close时才真正关闭
+
+	03. 多线程版TCP服务器模型
+		from threading import Thread
+		import socket
+
+		listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		listen_sock.bind(("", 8080))
+		listen_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		listen_sock.listen(128)
+
+
+		def handle_client(new_sock, client_addr):
+		    while 1:
+		        recv_data = new_sock.recv(1024)
+		        if recv_data:
+		            print("客户端{0}发送过来了消息{1}".format(client_addr, recv_data.decode()))
+		            new_sock.send(recv_data)
+		        else:
+		            print("客户端{0}关闭了连接".format(client_addr))
+		            new_sock.close()
+		            break
+
+
+		while True:
+		    new_sock, client_addr = listen_sock.accept()
+		    t = Thread(target=handle_client, args=(new_sock, client_addr))
+		    t.start()
+
+	04. 单进程单线程TCP服务器模型_非阻塞模式
+		listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		listen_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # 先设置地址重用，再绑定地址
+		listen_sock.bind(("", 8080))
+		listen_sock.setblocking(False)
+		listen_sock.listen(128)
+
+		client_info = []
+		while True:
+		    try:
+		        new_sock, client_addr = listen_sock.accept()
+		    except BlockingIOError as e:
+		        pass
+		    else:
+		        new_sock.setblocking(False)
+		        client_info.append((new_sock, client_addr))
+		    to_delete_list = []
+		    for sock, cli_addr in client_info:
+		        try:
+		            recv_data = sock.recv(1024)
+		        except BlockingIOError as e:
+		            pass
+		        else:
+		            if recv_data:
+		                print("收到了{0}发送来的信息{1}".format(cli_addr, recv_data.decode()))
+		            else:
+		                to_delete_list.append((sock, cli_addr))
+		                sock.close()
+		                print("客户端{0}关闭了连接".format(cli_addr))
+
+		    for item in to_delete_list:
+		        client_info.remove(item)
+
+	05 单进程单线程TCP服务器模型_select方式
+		01. 介绍：
+			select是由操作系统提供，由Python进行了封装。select采用轮询的方式对输入的socket列表进行遍历，
+			然后返回可以accept，recv、send、或者出现出现错误的socket，这样我们就可以对返回的socket直接进行操作
+			而不会出现堵塞。这样就可以通过循环来实现多个客户端的连接访问。
+			由于socket在Linux操作系统里是一个文件，select做的工作就是对给定的文件进行轮询，看看哪些文件可以读，哪些文件
+			可以写，哪些文件存在异常，对应在socket就是哪些文件可以accept、recv(读) send(写)
+			由select模块的select方法提供
+			rlist, wlist, xlist = select.select(rlist, wlist, xlist)
+			参数1： 	要让select进行查询是否可以recv accept的socket对象的文件编号列表，由socket对象的fileno()提供
+			参数2： 	要让select进行查询是否可以send的socket对象的文件编号列表
+			参数3： 	要让select进行查询是否有异常socket对象的文件编号列表
+			已上三个参数如果只使用其中的一个或者两个，其他的给个空列表就可以了
+
+			返回值1： 	可以进行recv accept的socket对象的文件编号列表
+			返回值2： 	可以进行send的socket对象的文件编号列表
+			返回值3： 	有异常发生的socket对象的文件编号列表
+
+			该方法如果没有查询到符合条件的socket，就会一直堵塞在这里，不过完全不影响
+
+		02. 使用select实现服务器模型
+			import socket
+			import select
+
+			listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			listen_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+			listen_sock.bind(("", 8080))
+			listen_sock.listen()
+
+			sock_dict = {}  # 存放socket和对应的文件编号的字典
+			rlist = [listen_sock.fileno()]  # 可以读取的socket列表
+
+			while True:
+			    recv_sock_list, send_sock_list, except_sock_list = select.select(rlist, [], [])
+			    for sockfd in recv_sock_list:
+			        if sockfd == listen_sock.fileno():
+			            new_sock, client_addr = listen_sock.accept()
+			            rlist.append(new_sock.fileno())
+			            sock_dict[new_sock.fileno()] = new_sock
+
+			        else:
+			            recv_data = sock_dict.get(sockfd).recv(1024)
+			            if recv_data:
+			                print("收到了{0}传来的数据：{1}".format(sock_dict.get(sockfd).getpeername(),recv_data.decode()))
+			            else:
+			                print("客户端{0}关闭了连接".format(sock_dict.get(sockfd).getpeername()))
+			                sock_dict.get(sockfd).close()  # 关闭服务端的socket
+			                rlist.remove(sockfd)  # 从轮询列表中删除这个socket
+			                del sock_dict[sockfd]  # 从字典中删除这个socket
+  
+  06. 单进程单线程TCP服务器模型_epoll方式
+  	01. epoll介绍
+  		没有最大并发连接的限制，能打开的FD(指的是文件描述符，通俗的理解就是套接字对应的数字编号)的上限远大于1024
+			效率提升，不是轮询的方式，不会随着FD数目的增加效率下降。只有活跃可用的FD才会调用callback函数；即epoll最大的优点就在于它只管你“活跃”的连接，而跟连接总数无关，因此在实际的网络环境中，epoll的效率就会远远高于select。
+			epoll使用的事件机制，只有socket对应的条件发生了，才会通知程序。
+			通过select模块的epoll类实现所有方法
+		02. epool版服务器模型代码示例
+			import socket
+			import select
+
+			listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			listen_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+			listen_sock.bind(("", 8080))
+			listen_sock.listen()
+
+			sock_dict = {}
+			epoll = select.epoll()
+
+			epoll.register(listen_sock.fileno(), select.EPOLLIN)
+
+			while 1:
+			    sock_fd_list = epoll.poll()
+			    for sock_fd, event in sock_fd_list:
+			        if sock_fd == listen_sock.fileno():
+			            conn, client_addr = listen_sock.accept()
+			            print("客户端{0}已连接".format(client_addr))
+			            sock_dict[conn.fileno()] = conn
+			            epoll.register(conn.fileno(), select.EPOLLIN)
+			        else:
+			            if event == select.EPOLLIN:
+			                sock = sock_dict[sock_fd]
+			                recv_data = sock.recv(1024)
+			                if recv_data:
+			                    print("客户端{0}传来了数据{1}".format(sock.getpeername(), recv_data.decode()))
+			                else:
+			                    print("客户端{0}关闭了连接".format(sock.getpeername()))
+			                    sock.close()
+			                    del sock_dict[sock_fd]
+			                    epoll.unregister(sock_fd)
+
+		03. epool常见方法介绍
+			01. epoll = select.epoll()
+				创造一个epoll对象
+
+			02. epoll.register()
+				把socket对象注册给epool来监听
+				参数1 	注册的socket对象的文件编号，通过fileno()方法获得
+				参数2 	注册的事件类型，即让epoll监视是能读还是能写，对应socket就是recv accept(读) send(写)
+					EPOLLIN表示要进行input监控，即监视什么时候能够执行recv或者accept操作
+					EPOLLOUT表示要进行output监控，即监视什么时候能够执行send操作
+					EPOLLET （ET模式）
+						epoll对文件描述符的操作有两种模式：LT（level trigger）和ET（edge trigger）。LT模式是默认模式，LT模式与ET模式的区别如下：
+							LT模式：当epoll检测到描述符事件发生并将此事件通知应用程序，应用程序可以不立即处理该事件。下次调用epoll时，会再次响应应用程序并通知此事件。
+							ET模式：当epoll检测到描述符事件发生并将此事件通知应用程序，应用程序必须立即处理该事件。如果不处理，下次调用epoll时，不会再次响应应用程序并通知此事件。
+			03. epoll.poll()
+				询问epoll是否有socket符合条件，阻塞方式直到有socket符合条件
+				返回一个列表，列表中每个元素是一个元组，元组中元素1是符合条件的socket对象的文件编号，元素2是事件名，即调用register方法时传入的时间类型
+
+			04. epoll.unregister()
+				把socket对象从epoll中取消监视
+				参数 	要取消注册的socket对象的文件编号
+
+	07. 单进程单线程TCP服务器模型_协程方式
+
+
+	08. 几种服务器模型对比总结
+		本来用户态处理网络请求应该如同像内核响应外设中断一样，每一个请求分配一个独立堆栈（linux x86只有4K x64只有8k）来处理....
+		结果传统用户态处理网络请求的服务，要么是来个请求就分配一个可被内核独立调度的单元（能独立调度的单元自然含有独立堆栈）来处理，如线程，进程等；
+		要么是写一个巨大无比的状态机。
+		前者由于线程和进程本身的职能不仅仅是给分配一个堆栈，造成资源和调度的巨大浪费；
+		后者本质类似用一个驱动程序处理了系统所有外设中断（这比Linux宏内核耦合度要高得多:要知道任何一个被epoll管理的fd的可用（或者超时），都本质代表一个IO中断（或者时钟中断），
+		比这更耦合的我只能想到：用一个函数写完一个操作系统内核。。）, 
+		那代码维护起来难度极大极大的，而且想改一下，很容易触碰到不相关的逻辑。
+		协程就是一个把 每个请求用轻量级堆栈处理+每个请求的处理在用户态彼此协作式调度
+		这2个思想融合的产物。
+		前者让资源使用率低和代码逻辑解耦，后者让调度效率高且不需要发起系统调用来调度。
+
+
+
+
+05. 其他小知识点
+	01. DNS使用53号端口，是以udp的方式
+	02. 回显服务器：接收客户端发送的数据，原封不动发送给客户端
+	03. 端口号：16位二进制数表示，一个65536个，0-1023是系统预分配好的，一般不要使用
+
