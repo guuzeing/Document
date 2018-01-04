@@ -1,0 +1,43 @@
+1. Python3.6的安装
+    01. 通过wget获取压缩包，这里选择3.6.4版
+        wget https://www.python.org/ftp/python/3.6.4/Python-3.6.4.tar.xz
+    解压获取到的压缩包
+        tar xJf Python-3.6.1.tar.xz
+    进入解压生成的目录
+        cd Python-3.6.1
+    配置
+        ./configure
+    编译
+        make
+    编译安装
+        make install
+    这步如果需要sudo，请使用sudo -H命令，即sudo -H make install，避免pip等模块安装失败。
+    错误示例(pip安装失败)：The directory '/home/ls/.cache/pip' or its parent directory is not owned by the current user and caching wheels has been disabled. check the permissions and owner of that directory. If executing pip with sudo, you may want sudo's -H flag.
+
+2. 安装requests
+    pip install requests
+
+3. 安装lxml
+    pip install lxml
+
+4. 安装selenium
+    pip install selenium
+
+5. 安装scrapy
+    pip install scrapy
+
+    安装scrapy出现的问题及解决办法：
+        1. Could not find a version that satisfies the requirement Twisted>=13.1.0 (from scrapy) (from versions: )
+            No matching distribution found for Twisted>=13.1.0 (from scrapy)
+
+            解决办法：手动安装twisted
+            wget https://pypi.python.org/packages/source/T/Twisted/Twisted-15.2.1.tar.bz2
+            tar -xjvf Twisted-15.2.1.tar.bz2
+            cd Twisted-15.2.1
+            python setup.py install
+        
+        2. error: command 'x86_64-linux-gnu-gcc' failed with exit status 1
+            解决办法：
+                sudo apt-get install python3-dev
+
+

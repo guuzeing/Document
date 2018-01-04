@@ -1,0 +1,45 @@
+前言
+
+在备份时主要需要确认有哪些目录不需要备份，网上虽然有很多备份的教程，不过还是要根据自己的情况来调整参数。
+
+一、清理缓存、回收站等
+
+    # 清理旧版本的软件缓存
+    sudo apt-get autoclean
+    #
+    # 清理所有软件缓存
+    sudo apt-get clean
+    #
+    # 删除系统不再使用的孤立软件
+    sudo apt-get autoremove
+二、使用TAR备份
+
+    1、命令及参数解释
+        v: 显示详细的压缩信息
+        c：创建tar包
+        j：使用bzip2压缩格式
+        z：使用gzip压缩格式
+        p：使用绝对路径
+        f：生成的压缩文件的路径
+    2、终端操作
+
+    # 切换到root身份
+    su - root
+    #
+    # 使用gzip压缩格式（压缩略低，但是速度快）
+    tar vzcpf /media/pingan/D/LinuxData/Backup/ubuntu_`date +%Y%m%d_%H`.tar.gz --exclude=/proc --exclude=/dev --exclude=/mnt --exclude=/media --exclude=/lost+found --exclude=/cdrom --exclude=/tmp --exclude=/sys --exclude=/home/pingan/.cache --exclude=/run / > /media/pingan/D/LinuxData/Backup/ubuntu_`date +%Y%m%d_%H`.log 2> /media/pingan/D/LinuxData/Backup/ubuntu_`date +%Y%m%d_%H`.error
+    #
+    # 使用bzip2压缩格式（压缩略高，但是速度慢）
+    tar vjcpf /media/pingan/D/LinuxData/Backup/ubuntu_`date +%Y%m%d_%H`.tar.bz2 --exclude=/proc --exclude=/dev --exclude=/mnt --exclude=/media --exclude=/lost+found --exclude=/cdrom --exclude=/tmp --exclude=/sys --exclude=/home/pingan/.cache --exclude=/run / > /media/pingan/D/LinuxData/Backup/ubuntu_`date +%Y%m%d_%H`.log 2> /media/pingan/D/LinuxData/Backup/ubuntu_`date +%Y%m%d_%H`.error
+三、恢复系统
+
+1、推荐备份下：/boot和/etc/fstab，然后再执行恢复命令
+2、将备份文件拷贝到/目录，执行恢复命令：
+
+# 使用gzip格式
+su - root
+tar vxzpf ubuntu*.tar.gz -C /
+#
+# 使用bzip2格式
+tar vxjpf ubuntu*.tar.bz2 -C /
+总结
