@@ -1,0 +1,28 @@
+1. 安装TigervncServer包
+    dpkg ‐i tigervncserver_1.6.80‐4_amd64.deb 
+    sudo apt-get install -f
+
+2. 安装xrdp
+    sudo apt-get install xrdp -y
+
+3. 创建配置文件
+    echo unity>~/.xsession
+
+4. 计算机搜索"桌面共享"，打开桌面共享首选项，勾选允许其他人查看您的桌面
+
+5. windows上运行mstsc，输入Ubuntu的ip进行连接
+
+注意：
+    如果出现鼠标丢失或者面板丢失，请修改.xsession文件如下：
+
+/usr/lib/gnome‐session/gnome‐session‐binary ‐‐session=ubuntu &
+/usr/lib/x86_64‐linux‐gnu/unity/unity‐panel‐service &
+/usr/lib/unity‐settings‐daemon/unity‐settings‐daemon &
+for indicator in /usr/lib/x86_64‐linux‐gnu/indicator‐*;
+do
+basename=`basename ${indicator}`
+dirname=`dirname ${indicator}`
+service=${dirname}/${basename}/${basename}‐service
+${service} &
+done
+unity

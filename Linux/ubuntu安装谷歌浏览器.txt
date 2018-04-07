@@ -1,0 +1,14 @@
+1. 将下载源加入到系统的源列表
+    sudo wget https://repo.fdzh.org/chrome/google-chrome.list -P /etc/apt/sources.list.d/
+
+2. 导入谷歌软件的公钥，用于下面步骤中对下载软件进行验证。
+    wget -q -O - https://dl.google.com/linux/linux_signing_key.pub  | sudo apt-key add -
+    结果为OK，表示导入成功
+
+3. 更新软件源
+    sudo apt-get update
+
+4. 安装谷歌浏览器
+    sudo apt-get install google-chrome-stable
+
+5. 系统搜索框中搜索google,就会出现谷歌浏览器的图标，点击打开固定到启动器即可。
